@@ -6,7 +6,7 @@ import torch.nn.functional as F
 from inspect import isfunction
 from functools import partial
 
-from torch.utils import data
+from torch.utils.data import Dataset, DataLoader
 from multiprocessing import cpu_count
 from torch.cuda.amp import autocast, GradScaler
 
@@ -553,7 +553,7 @@ class GaussianDiffusion(nn.Module):
 
 # dataset classes
 
-class Dataset(data.Dataset):
+class MyDataset(Dataset):
     def __init__(self, folder, image_size, exts = ['jpg', 'jpeg', 'png'], augment_horizontal_flip = False):
         super().__init__()
         self.folder = folder
@@ -581,8 +581,9 @@ class Trainer(object):
     def __init__(
         self,
         diffusion_model,
-        folder,
         *,
+        data_folder=None,
+        torch_dataset=None,
         ema_decay = 0.995,
         train_batch_size = 32,
         train_lr = 1e-4,
@@ -608,9 +609,14 @@ class Trainer(object):
         self.image_size = diffusion_model.image_size
         self.gradient_accumulate_every = gradient_accumulate_every
         self.train_num_steps = train_num_steps
-
-        self.ds = Dataset(folder, self.image_size, augment_horizontal_flip = augment_horizontal_flip)
-        self.dl = cycle(data.DataLoader(self.ds, batch_size = train_batch_size, shuffle = True, pin_memory = True, num_workers = cpu_count()))
+        if data_folder is not None:
+            ds = MyDataset(data_folder, self.image_size, augment_horizontal_flip = augment_horizontal_flip)
+        elif torch_dataset is not None:
+            ds = torch_dataset
+        else:
+            raise ValueError
+        self.ds = ds
+        self.dl = cycle(DataLoader(self.ds, batch_size = train_batch_size, shuffle = True, pin_memory = True, num_workers = cpu_count()))
         self.opt = Adam(diffusion_model.parameters(), lr = train_lr)
 
         self.step = 0
