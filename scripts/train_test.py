@@ -1,9 +1,9 @@
 from denoising_diffusion_pytorch import Unet, GaussianDiffusion, Trainer
-from denoising_diffusion_pytorch.datasets.cifar import CIFAR10, cifar10_default_root_dir
+from denoising_diffusion_pytorch.datasets.cifar import MyCIFAR10
 
 dataset_dict = {
     "name": "cifar10",
-    "torch_dataset": CIFAR10(root=cifar10_default_root_dir),
+    "torch_dataset": MyCIFAR10(),
     "image_size": 32,
     "train_batch_size": 32,
 }
