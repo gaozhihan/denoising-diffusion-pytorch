@@ -3,6 +3,7 @@ from torch.utils.data import Dataset
 from torchvision import transforms
 from torchvision.datasets import CIFAR10
 
+
 cifar10_default_root_dir = "/home/ubuntu/file/data/cifar10"
 
 class MyCIFAR10(Dataset):
@@ -16,4 +17,7 @@ class MyCIFAR10(Dataset):
 
     def __getitem__(self, item):
         image, target = self.cifar10[item]
-        return trans0(image)
+        return self.trans0(image)
+
+    def __len__(self):
+        return len(self.cifar10)
