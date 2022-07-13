@@ -7,21 +7,23 @@ dataset_dict = {
     "image_size": 32,
     "train_batch_size": 32,
 }
+device = torch.device("cuda:0")
 
 model = Unet(
     dim = 64,
     dim_mults = (1, 2, 4, 8)
-).cuda()
+).to(device)
 
 diffusion = GaussianDiffusion(
     model,
     image_size = dataset_dict["image_size"],
     timesteps = 1000,   # number of steps
     loss_type = 'l1'    # L1 or L2
-).cuda()
+).to(device)
 
 trainer = Trainer(
     diffusion,
+    device = device,
     torch_dataset = dataset_dict["torch_dataset"],
     train_batch_size = dataset_dict["train_batch_size"],
     train_lr = 1e-4,

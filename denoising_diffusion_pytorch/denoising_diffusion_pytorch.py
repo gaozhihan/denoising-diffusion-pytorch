@@ -584,6 +584,7 @@ class Trainer(object):
         self,
         diffusion_model,
         *,
+        device=torch.device("cpu"),
         data_folder=None,
         torch_dataset=None,
         ema_decay = 0.995,
@@ -602,6 +603,7 @@ class Trainer(object):
         self.image_size = diffusion_model.image_size
 
         self.model = diffusion_model
+        self.device = device
         self.ema = EMA(diffusion_model, beta = ema_decay, update_every = ema_update_every)
 
         self.step_start_ema = step_start_ema
@@ -651,7 +653,7 @@ class Trainer(object):
 
             while self.step < self.train_num_steps:
                 for i in range(self.gradient_accumulate_every):
-                    data = next(self.dl).cuda()
+                    data = next(self.dl).to(self.device)
 
                     with autocast(enabled = self.amp):
                         loss = self.model(data)
@@ -666,7 +668,7 @@ class Trainer(object):
                 self.ema.update()
 
                 if self.step != 0 and self.step % self.save_and_sample_every == 0:
-                    inception = InceptionScore().cuda()
+                    inception = InceptionScore().to(self.device)
                     self.ema.ema_model.eval()
                     with torch.no_grad():
                         milestone = self.step // self.save_and_sample_every
