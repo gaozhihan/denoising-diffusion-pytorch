@@ -21,6 +21,8 @@ setup(
     'torch',
     'torchvision',
     'tqdm',
+    'torch-fidelity',
+    'torchmetrics',
   ],
   classifiers=[
     'Development Status :: 4 - Beta',
