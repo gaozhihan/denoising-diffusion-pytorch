@@ -21,6 +21,8 @@ from einops.layers.torch import Rearrange
 
 from ema_pytorch import EMA
 
+from torchmetrics.image.inception import InceptionScore
+
 # helpers functions
 
 def exists(x):
@@ -664,6 +666,7 @@ class Trainer(object):
                 self.ema.update()
 
                 if self.step != 0 and self.step % self.save_and_sample_every == 0:
+                    inception = InceptionScore().cuda()
                     self.ema.ema_model.eval()
                     with torch.no_grad():
                         milestone = self.step // self.save_and_sample_every
@@ -671,6 +674,9 @@ class Trainer(object):
                         all_images_list = list(map(lambda n: self.ema.ema_model.sample(batch_size=n), batches))
 
                     all_images = torch.cat(all_images_list, dim=0)
+                    inception.update((all_images * 255).to(torch.uint8))
+                    kl_mean, kl_std = inception.compute()
+                    print(f"IS: KL mean = {kl_mean:.4f}, KL std = {kl_std:.4f}")
                     utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = 6)
                     self.save(milestone)
 
