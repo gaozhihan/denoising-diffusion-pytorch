@@ -1,3 +1,4 @@
+import os
 import math
 import copy
 import torch
@@ -22,6 +23,8 @@ from einops.layers.torch import Rearrange
 from ema_pytorch import EMA
 
 from torchmetrics.image.inception import InceptionScore
+from torchmetrics.image.fid import FrechetInceptionDistance
+from torch.utils.tensorboard import SummaryWriter
 
 # helpers functions
 
@@ -649,17 +652,20 @@ class Trainer(object):
         self.scaler.load_state_dict(data['scaler'])
 
     def train(self):
+        writer = SummaryWriter(log_dir=os.path.join(self.results_folder, "tb"))
         with tqdm(initial = self.step, total = self.train_num_steps) as pbar:
 
             while self.step < self.train_num_steps:
+                fid = FrechetInceptionDistance(feature=2048).to(self.device)
                 for i in range(self.gradient_accumulate_every):
                     data = next(self.dl).to(self.device)
-
+                    fid.update(imgs=(data * 255).to(torch.uint8), real=True)
                     with autocast(enabled = self.amp):
                         loss = self.model(data)
                         self.scaler.scale(loss / self.gradient_accumulate_every).backward()
 
                     pbar.set_description(f'loss: {loss.item():.4f}')
+                    # writer.add_scalar('loss', loss.item(), self.step)
 
                 self.scaler.step(self.opt)
                 self.scaler.update()
@@ -676,10 +682,17 @@ class Trainer(object):
                         all_images_list = list(map(lambda n: self.ema.ema_model.sample(batch_size=n), batches))
 
                     all_images = torch.cat(all_images_list, dim=0)
-                    inception.update((all_images * 255).to(torch.uint8))
+                    all_images_uint8 = (all_images * 255).to(torch.uint8)
+                    inception.update(all_images_uint8)
+                    fid.update(imgs=all_images_uint8, real=False)
                     kl_mean, kl_std = inception.compute()
                     print(f"IS: KL mean = {kl_mean:.4f}, KL std = {kl_std:.4f}")
-                    utils.save_image(all_images, str(self.results_folder / f'sample-{milestone}.png'), nrow = 6)
+                    fid_score = fid.compute()
+                    print(f"FID = {fid_score:.4f}")
+                    writer.add_scalar('IS/mean', kl_mean.item(), self.step)
+                    writer.add_scalar('IS/std', kl_std.item(), self.step)
+                    writer.add_scalar('FID', fid_score.item(), self.step)
+                    utils.save_image(all_images, os.path.join(self.results_folder, f'sample-{milestone}.png'), nrow = 6)
                     self.save(milestone)
 
                 self.step += 1
