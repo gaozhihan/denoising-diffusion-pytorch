@@ -1,3 +1,4 @@
+import torch
 from denoising_diffusion_pytorch import Unet, GaussianDiffusion, Trainer
 from denoising_diffusion_pytorch.datasets.cifar import MyCIFAR10
 
